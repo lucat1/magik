@@ -1,0 +1,8 @@
+magik is a highly customizable tool to create password-less login experiences.
+The authentication parts can be swapped out for a different approach or even multiple where possible.
+
+Ideas:
+  - interchangeable token generation algorithm
+  - interchangealbe token storage (memory, local, redis)
+  - interchangeable array of sending techniques (email (stmp, mail services), sms etc)
+  - various providers for different routing libraries in go (net/http, gin, muxie)
