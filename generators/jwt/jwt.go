@@ -12,7 +12,7 @@ type JWToken struct {
 }
 
 type TokenClaims struct {
-	Email string
+	Email string `json:"email"`
 	jwt.StandardClaims
 }
 
@@ -23,7 +23,7 @@ func (t JWToken) Generate(email string, length time.Duration) (string, error) {
 			ExpiresAt: time.Now().Add(length).Unix(),
 			Issuer:    "magik-jwt",
 		}})
-	return token.SignedString(token)
+	return token.SignedString([]byte(t.secret))
 }
 
 func (t JWToken) Validate(raw string) (string, error) {

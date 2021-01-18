@@ -16,15 +16,15 @@ type MagikToken interface {
 type MagikEmail interface {
 	// auth can be of varios types depending on the email provider
 	// the Send method should check for the correctness of this type
-	Send(to, title, body string) error
+	Send(to, body string) error
 }
 
-type MagikEmailGenerator func(token, url string) (string, string)
+type MagikEmailBody func(token, url string) string
 type MagikConfig struct {
 	BaseURL      string
 	TokenTime    time.Duration
-	RegisterBody MagikEmailGenerator
-	LoginBody    MagikEmailGenerator
+	RegisterBody MagikEmailBody
+	LoginBody    MagikEmailBody
 }
 
 type Magik struct {
@@ -43,12 +43,10 @@ func (m Magik) TokenURL(method, token string) string {
 	old := m.BaseURL.Path
 
 	m.BaseURL.Path = path.Join(m.BaseURL.Path, method)
-	q := m.BaseURL.Query()
-	q.Set("t", token)
-	m.BaseURL.RawQuery = q.Encode()
+	m.BaseURL.Query().Add("t", token)
 	res := m.BaseURL.String()
 
-	m.BaseURL.RawQuery = ""
+	m.BaseURL.Query().Del("t")
 	m.BaseURL.Path = old
 
 	return res
@@ -56,7 +54,7 @@ func (m Magik) TokenURL(method, token string) string {
 
 // internal APIs helper to call *Body functions for
 // generating email bodies
-func (m Magik) Body(kind, token string) (string, string) {
+func (m Magik) Body(kind, token string) string {
 	url := m.TokenURL(kind, token)
 	switch kind {
 	case "register":
@@ -65,31 +63,24 @@ func (m Magik) Body(kind, token string) (string, string) {
 		return m.Config.LoginBody(token, url)
 	}
 
-	return "attempt to authenticate", "invalid body kind, this error should be reported to the administrator\n\n" + url
+	return "invalid body kind, this error should be reported to the administrator\n\n" + url
 }
 
-func sendWithToken(tkn MagikToken, em MagikEmail, gen MagikEmailGenerator, duration time.Duration, kind, email string) error {
+func sendWithToken(tkn MagikToken, body func(string, string),duration time.Duration, kind, email string) error {
 	token, err := tkn.Generate(email, duration)
 	if err != nil {
 		return err
 	}
 
-	title, body := gen("register", token)
-	return em.Send(email, title, body)
+	return m.Email.Send(email, m.Body("register", token))
 }
 
 func (m Magik) Register(email string) error {
-	return sendWithToken(m.Token, m.Email, m.Body, m.Config.TokenTime, "register", email)
 }
 
-func (m Magik) Login(email string) error {
-	return sendWithToken(m.Token, m.Email, m.Body, m.Config.TokenTime, "login", email)
-}
-
-func StandardFormat(titleTemplate, bodyTemplate string) MagikEmailGenerator {
-	return func(token, url string) (string, string) {
-		return strings.ReplaceAll(strings.ReplaceAll(titleTemplate, "%token%", token), "%url%", url),
-			strings.ReplaceAll(strings.ReplaceAll(bodyTemplate, "%token%", token), "%url%", url)
+func StandardFormat(template string) MagikEmailBody {
+	return func(token, url string) string {
+		return strings.ReplaceAll(strings.ReplaceAll(template, "%token%", token), "%url%", url)
 	}
 }
 
