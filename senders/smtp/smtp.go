@@ -29,7 +29,7 @@ func (s SMTPEmail) Send(to, title, body string) error {
 	return smtp.SendMail(s.config.Hostname+":"+strconv.Itoa(int(s.config.Port)), s.auth, s.config.Email, []string{to}, msg)
 }
 
-func NewEmail(config SMTPEmailConfig) (SMTPEmail, error) {
+func NewSender(config SMTPEmailConfig) (SMTPEmail, error) {
 	if config.Email == "" || config.Password == "" || config.Hostname == "" || config.Port == 0 {
 		return SMTPEmail{}, errors.New("smtp: config fields can't be empty")
 	}

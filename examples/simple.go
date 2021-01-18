@@ -23,7 +23,7 @@ func main() {
 	}
 
 	generator := jwt.NewGenerator("a very secret secret")
-	email, err := smtp.NewEmail(smtp.SMTPEmailConfig{
+	sender, err := smtp.NewSender(smtp.SMTPEmailConfig{
 		Email:    os.Getenv("EMAIL"),
 		Password: os.Getenv("PASSWORD"),
 		Hostname: "smtp.gmail.com",
@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	auth, err := magik.NewMagik(config, generator, email)
+	auth, err := magik.NewMagik(config, generator, sender)
 	if err != nil {
 		panic(err)
 	}
