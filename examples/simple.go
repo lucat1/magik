@@ -1,11 +1,13 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/lucat1/magik"
 	"github.com/lucat1/magik/generators/jwt"
+	mhttp "github.com/lucat1/magik/handlers/http"
 	"github.com/lucat1/magik/senders/smtp"
 )
 
@@ -36,7 +38,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := auth.Register(os.Getenv("TARGET")); err != nil {
+	if err := auth.Register(os.Getenv("TARGET"), "/"); err != nil {
 		panic(err)
 	}
+
+	http.Handle("/auth/register", mhttp.Register(auth))
+	http.ListenAndServe(":3000", nil)
 }

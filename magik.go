@@ -39,12 +39,13 @@ type Magik struct {
 // a path and providing the token value as a query parameter
 // example:
 // TokenURL("register", "abc") = "baseURL/register?t=abc"
-func (m Magik) TokenURL(method, token string) string {
+func (m Magik) TokenURL(method, token, backto string) string {
 	old := m.BaseURL.Path
 
 	m.BaseURL.Path = path.Join(m.BaseURL.Path, method)
 	q := m.BaseURL.Query()
 	q.Set("t", token)
+	q.Set("r", backto)
 	m.BaseURL.RawQuery = q.Encode()
 	res := m.BaseURL.String()
 
@@ -56,8 +57,8 @@ func (m Magik) TokenURL(method, token string) string {
 
 // internal APIs helper to call *Body functions for
 // generating email bodies
-func (m Magik) Body(kind, token string) (string, string) {
-	url := m.TokenURL(kind, token)
+func (m Magik) Body(kind, token, backto string) (string, string) {
+	url := m.TokenURL(kind, token, backto)
 	switch kind {
 	case "register":
 		return m.Config.RegisterBody(token, url)
@@ -68,22 +69,22 @@ func (m Magik) Body(kind, token string) (string, string) {
 	return "attempt to authenticate", "invalid body kind, this error should be reported to the administrator\n\n" + url
 }
 
-func sendWithToken(tkn MagikToken, em MagikEmail, gen MagikEmailGenerator, duration time.Duration, kind, email string) error {
-	token, err := tkn.Generate(email, duration)
+func sendWithToken(m Magik, duration time.Duration, kind, email, backto string) error {
+	token, err := m.Token.Generate(email, duration)
 	if err != nil {
 		return err
 	}
 
-	title, body := gen("register", token)
-	return em.Send(email, title, body)
+	title, body := m.Body("register", token, backto)
+	return m.Email.Send(email, title, body)
 }
 
-func (m Magik) Register(email string) error {
-	return sendWithToken(m.Token, m.Email, m.Body, m.Config.TokenTime, "register", email)
+func (m Magik) Register(email, backto string) error {
+	return sendWithToken(m, m.Config.TokenTime, "register", email, backto)
 }
 
-func (m Magik) Login(email string) error {
-	return sendWithToken(m.Token, m.Email, m.Body, m.Config.TokenTime, "login", email)
+func (m Magik) Login(email, backto string) error {
+	return sendWithToken(m, m.Config.TokenTime, "login", email, backto)
 }
 
 func StandardFormat(titleTemplate, bodyTemplate string) MagikEmailGenerator {
