@@ -9,15 +9,16 @@ import (
 func RegisterFunc(m *magik.Magik) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("t")
-		email, err := m.Token.Validate(token)
+		backto := r.URL.Query().Get("r")
+		// email
+		_, err := m.Token.Validate(token)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		// TODO: accept the email internally
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok " + email))
+		http.Redirect(w, r, backto, http.StatusMovedPermanently)
 	})
 }
 
