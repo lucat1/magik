@@ -2,13 +2,13 @@ package main
 
 import (
 	"net/http"
-	"os"
 	"time"
+  "log"
 
 	"github.com/lucat1/magik"
 	"github.com/lucat1/magik/generators/jwt"
 	mhttp "github.com/lucat1/magik/handlers/http"
-	"github.com/lucat1/magik/senders/smtp"
+	mlog "github.com/lucat1/magik/senders/log"
 )
 
 var (
@@ -21,16 +21,19 @@ func main() {
 		BaseURL:      "http://localhost:3000/auth",
 		TokenTime:    time.Hour * 6,
 		RegisterBody: registerBody,
+    RegisterURL:  "register",
 		LoginBody:    loginBody,
+    LoginURL:     "login",
 	}
 
 	generator := jwt.NewGenerator("a very secret secret")
-	sender, err := smtp.NewSender(smtp.SMTPEmailConfig{
-		Email:    os.Getenv("EMAIL"),
-		Password: os.Getenv("PASSWORD"),
-		Hostname: "smtp.gmail.com",
-		Port:     587,
-	})
+	// sender, err := smtp.NewSender(smtp.SMTPEmailConfig{
+	// 	Email:    os.Getenv("EMAIL"),
+	// 	Password: os.Getenv("PASSWORD"),
+	// 	Hostname: "smtp.gmail.com",
+	// 	Port:     587,
+	// })
+  sender, err := mlog.NewSender(log.Default())
 	if err != nil {
 		panic(err)
 	}
@@ -38,7 +41,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := auth.Register(os.Getenv("TARGET"), "/"); err != nil {
+	if err := auth.Register("user@domain.com", "/"); err != nil {
 		panic(err)
 	}
 

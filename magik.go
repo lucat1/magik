@@ -23,68 +23,98 @@ type MagikEmailGenerator func(token, url string) (string, string)
 type MagikConfig struct {
 	BaseURL      string
 	TokenTime    time.Duration
+  RegisterURL  string
 	RegisterBody MagikEmailGenerator
+  LoginURL     string
 	LoginBody    MagikEmailGenerator
 }
 
 type Magik struct {
 	Config MagikConfig
 
-	BaseURL *url.URL
-	Token   MagikToken
-	Email   MagikEmail
+	BaseURL     *url.URL
+	RegisterURL *url.URL
+	LoginURL    *url.URL
+	Token       MagikToken
+	Email       MagikEmail
+}
+
+type EmailType uint
+const (
+  EmailTypeLogin    EmailType = iota
+  EmailTypeRegister
+)
+
+// internal:
+func absOrJoin(base, extra *url.URL) *url.URL {
+  if(extra.IsAbs()) {
+    return extra
+  } else if(path.IsAbs(extra.Path)) {
+    cpy := base
+    cpy.Path = extra.Path
+    return cpy
+  } else {
+    cpy := base
+    cpy.Path = path.Join(base.Path, extra.Path)
+    return cpy
+  }
 }
 
 // TokenURL generates an url appending to the base url
-// a path and providing the token value as a query parameter
-// example:
-// TokenURL("register", "abc") = "baseURL/register?t=abc"
-func (m Magik) TokenURL(method, token, backto string) string {
-	old := m.BaseURL.Path
-
-	m.BaseURL.Path = path.Join(m.BaseURL.Path, method)
-	q := m.BaseURL.Query()
+// a path for the requested login type and providing the token value as
+// a query parameter. Here's an example:
+// TokenURL(EmailTypeRegister, "abc", "/home") = "baseURL/register?t=abc"
+func (m Magik) TokenURL(kind EmailType, token, backto string) string {
+  var extra *url.URL
+  switch kind {
+  case EmailTypeRegister:
+    extra = m.RegisterURL
+    break
+  case EmailTypeLogin:
+    extra = m.LoginURL
+    break
+  }
+  url := absOrJoin(m.BaseURL, extra)
+	q := url.Query()
 	q.Set("t", token)
 	q.Set("r", backto)
-	m.BaseURL.RawQuery = q.Encode()
-	res := m.BaseURL.String()
+	url.RawQuery = q.Encode()
 
-	m.BaseURL.RawQuery = ""
-	m.BaseURL.Path = old
-
-	return res
+	return url.String()
 }
 
-// internal APIs helper to call *Body functions for
-// generating email bodies
-func (m Magik) Body(kind, token, backto string) (string, string) {
+// internal: helper to call *Body functions for
+// generating email titles and bodies
+func (m Magik) Body(kind EmailType, token, backto string) (string, string) {
 	url := m.TokenURL(kind, token, backto)
 	switch kind {
-	case "register":
+	case EmailTypeRegister:
 		return m.Config.RegisterBody(token, url)
-	case "login":
+    break
+	case EmailTypeLogin:
 		return m.Config.LoginBody(token, url)
+    break
 	}
 
 	return "attempt to authenticate", "invalid body kind, this error should be reported to the administrator\n\n" + url
 }
 
-func sendWithToken(m Magik, duration time.Duration, kind, email, backto string) error {
+func sendWithToken(m Magik, duration time.Duration, kind EmailType, email, backto string) error {
 	token, err := m.Token.Generate(email, duration)
 	if err != nil {
 		return err
 	}
 
-	title, body := m.Body("register", token, backto)
+	title, body := m.Body(kind, token, backto)
 	return m.Email.Send(email, title, body)
 }
 
 func (m Magik) Register(email, backto string) error {
-	return sendWithToken(m, m.Config.TokenTime, "register", email, backto)
+	return sendWithToken(m, m.Config.TokenTime, EmailTypeRegister, email, backto)
 }
 
 func (m Magik) Login(email, backto string) error {
-	return sendWithToken(m, m.Config.TokenTime, "login", email, backto)
+	return sendWithToken(m, m.Config.TokenTime, EmailTypeLogin, email, backto)
 }
 
 func StandardFormat(titleTemplate, bodyTemplate string) MagikEmailGenerator {
@@ -97,15 +127,27 @@ func StandardFormat(titleTemplate, bodyTemplate string) MagikEmailGenerator {
 func NewMagik(conf MagikConfig, tok MagikToken, email MagikEmail) (*Magik, error) {
 	var (
 		u   *url.URL
+		ur  *url.URL
+		ul  *url.URL
 		err error
 	)
 
 	if u, err = url.Parse(conf.BaseURL); conf.BaseURL == "" || err != nil {
-		return nil, fmt.Errorf("invalid url: '%s'", conf.BaseURL)
+		return nil, fmt.Errorf("invalid base url: '%s'", conf.BaseURL)
+	}
+
+	if ur, err = url.Parse(conf.RegisterURL); conf.RegisterURL == "" || err != nil {
+		return nil, fmt.Errorf("invalid register url: '%s'", conf.RegisterURL)
+	}
+
+	if ul, err = url.Parse(conf.LoginURL); conf.LoginURL == "" || err != nil {
+		return nil, fmt.Errorf("invalid login url: '%s'", conf.LoginURL)
 	}
 
 	return &Magik{
 		BaseURL: u,
+		RegisterURL: ur,
+		LoginURL: ul,
 		Config:  conf,
 		Token:   tok,
 		Email:   email,
