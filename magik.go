@@ -45,7 +45,11 @@ const (
   EmailTypeRegister
 )
 
-// internal:
+// internal: merges two urls on the following priorities:
+// (1) if the `extra` url is absolute (http:../..) we return that
+// (2) if the `extra` url has an absolute path (/test) we return
+//     the base url's data BUT with the path from the extra
+// (3) otherwhise we merge the `base` and  `extra` paths
 func absOrJoin(base, extra *url.URL) *url.URL {
   if(extra.IsAbs()) {
     return extra
