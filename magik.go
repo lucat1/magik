@@ -121,10 +121,14 @@ func (m Magik) Login(email, backto string) error {
 	return sendWithToken(m, m.Config.TokenTime, EmailTypeLogin, email, backto)
 }
 
+// internal: format a `src` string with the given token and url parameters
+func standardFormatString(src, token, url string) string {
+  return strings.ReplaceAll(strings.ReplaceAll(src, "%token%", token), "%url%", url)
+}
+
 func StandardFormat(titleTemplate, bodyTemplate string) MagikEmailGenerator {
 	return func(token, url string) (string, string) {
-		return strings.ReplaceAll(strings.ReplaceAll(titleTemplate, "%token%", token), "%url%", url),
-			strings.ReplaceAll(strings.ReplaceAll(bodyTemplate, "%token%", token), "%url%", url)
+		return standardFormatString(titleTemplate, token, url), standardFormatString(bodyTemplate, token, url)
 	}
 }
 

@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	loginBody    = magik.StandardFormat("register to example.com", "to login press <a href=\"%url%\">this link</a>")
-	registerBody = magik.StandardFormat("login onto example.com", "to register press <a href=\"%url%\">this link</a>")
+	loginBody    = magik.StandardFormat("login onto example.com", "to login press <a href=\"%url%\">this link</a>")
+	registerBody = magik.StandardFormat("register to example.com", "to register press <a href=\"%url%\">this link</a>")
 )
 
 func main() {
